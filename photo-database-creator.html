@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>スマホ写真データベース作成ツール</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exif-js/2.3.0/exif.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f7fa;
+            color: #333;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+        }
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 30px;
+        }
+        .section {
+            margin-bottom: 30px;
+            padding: 15px;
+            border-radius: 6px;
+            background-color: #f9f9f9;
+        }
+        .input-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .file-input-container {
+            position: relative;
+            width: 100%;
+            max-width: 400px;
+            height: 200px;
+            border: 3px dashed #ccc;
+            border-radius: 8px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 20px;
+            background-color: #f8f9fa;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        .file-input-container:hover {
+            border-color: #3498db;
+            background-color: #e9f7fe;
+        }
+        .file-input-container input[type="file"] {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            cursor: pointer;
+        }
+        .file-input-label {
+            font-size: 18px;
+            color: #7f8c8d;
+            text-align: center;
+            padding: 0 15px;
+        }
+        .file-input-icon {
+            font-size: 48px;
+            color: #3498db;
+            margin-bottom: 10px;
+        }
+        .btn {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            margin: 10px 0;
+        }
+        .btn:hover {
+            background-color: #2980b9;
+        }
+        .btn:disabled {
+            background-color: #95a5a6;
+            cursor: not-allowed;
+        }
+        .progress-container {
+            width: 100%;
+            margin: 20px 0;
+        }
+        progress {
+            width: 100%;
+            height: 20px;
+            border-radius: 10px;
+        }
+        .table-container {
+            width: 100%;
+            overflow-x: auto;
+            margin-top: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 15px;
+        }
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #3498db;
+            color: white;
+            position: sticky;
+            top: 0;
+        }
+        tr:hover {
+            background-color: #f1f1f1;
+        }
+        .status {
+            margin: 15px 0;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .status.success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .status.error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .thumbnail {
+            width: 100px;
+            height: 75px;
+            object-fit: cover;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .export-options {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 20px;
+        }
+        .preview-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        .preview-content {
+            max-width: 90%;
+            max-height: 90%;
+        }
+        .preview-image {
+            max-width: 100%;
+            max-height: 80vh;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+        }
+        .preview-close {
+            position: absolute;
+            top: 20px;
+            right: 30px;
+            color: white;
+            font-size: 30px;
+            cursor: pointer;
+        }
+        .preview-info {
+            color: white;
+            background-color: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 4px;
+        }
+        .stats-container {
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+            margin: 20px 0;
+        }
+        .stat-card {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            padding: 15px;
+            margin: 10px;
+            text-align: center;
+            flex: 1;
+            min-width: 150px;
+        }
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #3498db;
+        }
+        .stat-label {
+            color: #7f8c8d;
+            margin-top: 5px;
+        }
+        @media (max-width: 768px) {
+            .stat-card {
+                min-width: 120px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>スマホ写真データベース作成ツール</h1>
+        
+        <div class="section input-section">
+            <div class="file-input-container" id="drop-area">
+                <input type="file" id="file-input" webkitdirectory directory multiple />
+                <div class="file-input-label">
+                    <div class="file-input-icon">📁</div>
+                    <p>写真フォルダをクリックして選択<br>または、ここにドラッグ&ドロップ</p>
+                </div>
+            </div>
+            
+            <div class="progress-container" style="display: none;">
+                <progress id="progress-bar" value="0" max="100"></progress>
+                <div id="progress-status">0%</div>
+            </div>
+            
+            <div id="status-message" class="status"></div>
+            
+            <button id="process-btn" class="btn" disabled>データベース作成</button>
+        </div>
+        
+        <div class="section" id="results-section" style="display: none;">
+            <h2>結果</h2>
+            
+            <div class="stats-container">
+                <div class="stat-card">
+                    <div class="stat-value" id="total-photos">0</div>
+                    <div class="stat-label">合計写真数</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="with-location">0</div>
+                    <div class="stat-label">位置情報あり</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="with-date">0</div>
+                    <div class="stat-label">日付情報あり</div>
+                </div>
+            </div>
+            
+            <div class="table-container">
+                <table id="results-table">
+                    <thead>
+                        <tr>
+                            <th>サムネイル</th>
+                            <th>ファイル名</th>
+                            <th>緯度</th>
+                            <th>経度</th>
+                            <th>撮影日時</th>
+                        </tr>
+                    </thead>
+                    <tbody id="results-body"></tbody>
+                </table>
+            </div>
+            
+            <div class="export-options">
+                <button id="export-json" class="btn">JSONとして保存</button>
+                <button id="export-csv" class="btn">CSVとして保存</button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="preview-modal" id="preview-modal">
+        <span class="preview-close" id="preview-close">&times;</span>
+        <div class="preview-content">
+            <img id="preview-image" class="preview-image" src="" alt="写真プレビュー">
+            <div class="preview-info" id="preview-info"></div>
+        </div>
+    </div>
+    
+    <script>
+        // DOM要素の取得
+        const fileInput = document.getElementById('file-input');
+        const dropArea = document.getElementById('drop-area');
+        const processBtn = document.getElementById('process-btn');
+        const progressContainer = document.querySelector('.progress-container');
+        const progressBar = document.getElementById('progress-bar');
+        const progressStatus = document.getElementById('progress-status');
+        const statusMessage = document.getElementById('status-message');
+        const resultsSection = document.getElementById('results-section');
+        const resultsTable = document.getElementById('results-table');
+        const resultsBody = document.getElementById('results-body');
+        const exportJsonBtn = document.getElementById('export-json');
+        const exportCsvBtn = document.getElementById('export-csv');
+        const previewModal = document.getElementById('preview-modal');
+        const previewImage = document.getElementById('preview-image');
+        const previewInfo = document.getElementById('preview-info');
+        const previewClose = document.getElementById('preview-close');
+        const totalPhotosElement = document.getElementById('total-photos');
+        const withLocationElement = document.getElementById('with-location');
+        const withDateElement = document.getElementById('with-date');
+        
+        // グローバル変数
+        let selectedFiles = [];
+        let photoDatabase = [];
+        
+        // ドラッグ&ドロップ機能
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, preventDefaults, false);
+        });
+        
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+        
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropArea.addEventListener(eventName, highlight, false);
+        });
+        
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, unhighlight, false);
+        });
+        
+        function highlight() {
+            dropArea.style.borderColor = '#3498db';
+            dropArea.style.backgroundColor = '#e9f7fe';
+        }
+        
+        function unhighlight() {
+            dropArea.style.borderColor = '#ccc';
+            dropArea.style.backgroundColor = '#f8f9fa';
+        }
+        
+        dropArea.addEventListener('drop', handleDrop, false);
+        
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            handleFiles(files);
+        }
+        
+        // ファイル選択イベント
+        fileInput.addEventListener('change', function() {
+            handleFiles(this.files);
+        });
+        
+        function handleFiles(files) {
+            selectedFiles = Array.from(files).filter(file => {
+                const fileType = file.type.toLowerCase();
+                return fileType.startsWith('image/');
+            });
+            
+            if (selectedFiles.length > 0) {
+                processBtn.disabled = false;
+                statusMessage.textContent = `${selectedFiles.length}枚の画像が選択されました`;
+                statusMessage.className = 'status success';
+            } else {
+                processBtn.disabled = true;
+                statusMessage.textContent = '画像ファイルが見つかりませんでした';
+                statusMessage.className = 'status error';
+            }
+        }
+        
+        // 処理開始
+        processBtn.addEventListener('click', processImages);
+        
+        async function processImages() {
+            // UI更新
+            processBtn.disabled = true;
+            progressContainer.style.display = 'block';
+            progressBar.value = 0;
+            progressStatus.textContent = '0%';
+            photoDatabase = [];
+            
+            // 統計情報の初期化
+            let totalPhotos = 0;
+            let withLocation = 0;
+            let withDate = 0;
+            
+            for (let i = 0; i < selectedFiles.length; i++) {
+                const file = selectedFiles[i];
+                totalPhotos++;
+                
+                try {
+                    const photoData = await extractPhotoData(file);
+                    
+                    if (photoData.latitude && photoData.longitude) {
+                        withLocation++;
+                    }
+                    
+                    if (photoData.dateTime) {
+                        withDate++;
+                    }
+                    
+                    photoDatabase.push(photoData);
+                } catch (error) {
+                    console.error(`Error processing file ${file.name}:`, error);
+                }
+                
+                // 進捗状況の更新
+                const progress = Math.round((i + 1) / selectedFiles.length * 100);
+                progressBar.value = progress;
+                progressStatus.textContent = `${progress}%`;
+            }
+            
+            // 統計情報の更新
+            totalPhotosElement.textContent = totalPhotos;
+            withLocationElement.textContent = withLocation;
+            withDateElement.textContent = withDate;
+            
+            // 結果の表示
+            displayResults();
+            resultsSection.style.display = 'block';
+            
+            statusMessage.textContent = '処理が完了しました';
+            statusMessage.className = 'status success';
+        }
+        
+        function extractPhotoData(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                
+                reader.onload = function(event) {
+                    const photoData = {
+                        fileName: file.name,
+                        filePath: file.webkitRelativePath || file.name,
+                        fileUrl: URL.createObjectURL(file),
+                        fileSize: file.size,
+                        fileType: file.type,
+                        latitude: null,
+                        longitude: null,
+                        dateTime: null
+                    };
+                    
+                    EXIF.getData(file, function() {
+                        // GPS情報の抽出
+                        const exifData = EXIF.getAllTags(this);
+                        
+                        if (exifData && exifData.GPSLatitude && exifData.GPSLongitude) {
+                            const latitudeRef = exifData.GPSLatitudeRef || 'N';
+                            const longitudeRef = exifData.GPSLongitudeRef || 'E';
+                            
+                            let latitude = convertDMSToDD(exifData.GPSLatitude);
+                            let longitude = convertDMSToDD(exifData.GPSLongitude);
+                            
+                            if (latitudeRef === 'S') latitude = -latitude;
+                            if (longitudeRef === 'W') longitude = -longitude;
+                            
+                            photoData.latitude = latitude;
+                            photoData.longitude = longitude;
+                        }
+                        
+                        // 撮影日時の抽出
+                        if (exifData && exifData.DateTimeOriginal) {
+                            // EXIF日付形式（YYYY:MM:DD HH:MM:SS）をJavaScript日付形式に変換
+                            const dateParts = exifData.DateTimeOriginal.split(' ');
+                            const datePart = dateParts[0].replace(/:/g, '-');
+                            const timePart = dateParts[1];
+                            photoData.dateTime = new Date(`${datePart}T${timePart}`);
+                        }
+                        
+                        resolve(photoData);
+                    });
+                };
+                
+                reader.onerror = function() {
+                    reject(new Error(`ファイル読み込みエラー: ${file.name}`));
+                };
+                
+                reader.readAsDataURL(file);
+            });
+        }
+        
+        function convertDMSToDD(dmsArray) {
+            // EXIF GPSLatitude, GPSLongitude配列を10進数度に変換
+            if (!dmsArray || dmsArray.length !== 3) return null;
+            
+            const degrees = dmsArray[0];
+            const minutes = dmsArray[1];
+            const seconds = dmsArray[2];
+            
+            return degrees + (minutes / 60) + (seconds / 3600);
+        }
+        
+        function displayResults() {
+            // テーブルをクリア
+            resultsBody.innerHTML = '';
+            
+            // データベースをソート（日付順）
+            photoDatabase.sort((a, b) => {
+                if (!a.dateTime) return 1;
+                if (!b.dateTime) return -1;
+                return a.dateTime - b.dateTime;
+            });
+            
+            // テーブルに結果を表示
+            photoDatabase.forEach((photo, index) => {
+                const row = document.createElement('tr');
+                
+                // サムネイル
+                const thumbnailCell = document.createElement('td');
+                const thumbnail = document.createElement('img');
+                thumbnail.src = photo.fileUrl;
+                thumbnail.alt = photo.fileName;
+                thumbnail.className = 'thumbnail';
+                thumbnail.dataset.index = index;
+                thumbnail.addEventListener('click', openPreview);
+                thumbnailCell.appendChild(thumbnail);
+                
+                // ファイル名
+                const fileNameCell = document.createElement('td');
+                fileNameCell.textContent = photo.fileName;
+                
+                // 緯度
+                const latitudeCell = document.createElement('td');
+                latitudeCell.textContent = photo.latitude ? photo.latitude.toFixed(6) : 'N/A';
+                
+                // 経度
+                const longitudeCell = document.createElement('td');
+                longitudeCell.textContent = photo.longitude ? photo.longitude.toFixed(6) : 'N/A';
+                
+                // 撮影日時
+                const dateTimeCell = document.createElement('td');
+                dateTimeCell.textContent = photo.dateTime ? formatDateTime(photo.dateTime) : 'N/A';
+                
+                // 行に追加
+                row.appendChild(thumbnailCell);
+                row.appendChild(fileNameCell);
+                row.appendChild(latitudeCell);
+                row.appendChild(longitudeCell);
+                row.appendChild(dateTimeCell);
+                
+                resultsBody.appendChild(row);
+            });
+        }
+        
+        function formatDateTime(date) {
+            if (!date) return 'N/A';
+            
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            const seconds = String(date.getSeconds()).padStart(2, '0');
+            
+            return `${year}/${month}/${day} ${hours}:${minutes}:${seconds}`;
+        }
+        
+        // プレビューモーダル
+        function openPreview() {
+            const index = parseInt(this.dataset.index);
+            const photo = photoDatabase[index];
+            
+            previewImage.src = photo.fileUrl;
+            
+            let infoHTML = `
+                <p><strong>ファイル名:</strong> ${photo.fileName}</p>
+                <p><strong>サイズ:</strong> ${formatFileSize(photo.fileSize)}</p>
+            `;
+            
+            if (photo.latitude && photo.longitude) {
+                infoHTML += `
+                    <p><strong>位置情報:</strong> ${photo.latitude.toFixed(6)}, ${photo.longitude.toFixed(6)}</p>
+                `;
+            }
+            
+            if (photo.dateTime) {
+                infoHTML += `
+                    <p><strong>撮影日時:</strong> ${formatDateTime(photo.dateTime)}</p>
+                `;
+            }
+            
+            previewInfo.innerHTML = infoHTML;
+            previewModal.style.display = 'flex';
+        }
+        
+        previewClose.addEventListener('click', function() {
+            previewModal.style.display = 'none';
+        });
+        
+        window.addEventListener('click', function(event) {
+            if (event.target === previewModal) {
+                previewModal.style.display = 'none';
+            }
+        });
+        
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 B';
+            
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+        
+        // エクスポート機能
+        exportJsonBtn.addEventListener('click', exportAsJson);
+        exportCsvBtn.addEventListener('click', exportAsCsv);
+        
+        function exportAsJson() {
+            // データベースをJSONに変換
+            const databaseToExport = photoDatabase.map(photo => {
+                // データURLは大きすぎるので、ファイルパス情報だけを含める
+                return {
+                    fileName: photo.fileName,
+                    filePath: photo.filePath,
+                    latitude: photo.latitude,
+                    longitude: photo.longitude,
+                    dateTime: photo.dateTime ? photo.dateTime.toISOString() : null
+                };
+            });
+            
+            const jsonString = JSON.stringify(databaseToExport, null, 2);
+            const blob = new Blob([jsonString], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            
+            downloadFile(url, 'photo-database.json');
+        }
+        
+        function exportAsCsv() {
+            // CSV用にデータを整形
+            const headers = ['FileName', 'FilePath', 'Latitude', 'Longitude', 'DateTime'];
+            
+            const rows = photoDatabase.map(photo => {
+                return [
+                    photo.fileName,
+                    photo.filePath,
+                    photo.latitude || '',
+                    photo.longitude || '',
+                    photo.dateTime ? photo.dateTime.toISOString() : ''
+                ];
+            });
+            
+            // CSV文字列の作成
+            let csvContent = headers.join(',') + '\n';
+            
+            rows.forEach(row => {
+                const quotedRow = row.map(cell => {
+                    // カンマやダブルクォーテーションを含む場合、適切にエスケープ
+                    const cellStr = String(cell);
+                    if (cellStr.includes(',') || cellStr.includes('"')) {
+                        return `"${cellStr.replace(/"/g, '""')}"`;
+                    }
+                    return cellStr;
+                });
+                csvContent += quotedRow.join(',') + '\n';
+            });
+            
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            
+            downloadFile(url, 'photo-database.csv');
+        }
+        
+        function downloadFile(url, fileName) {
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(() => {
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }, 100);
+        }
+    </script>
+</body>
+</html>
